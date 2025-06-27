@@ -149,8 +149,3 @@ class FindMeStoreList:
                 )
         products = res.json().get("products", [])
         return [self._parse_product(product) for product in products]
-
-
-fms = FindMeStoreList()
-fms.fetch_items()
-fms.fill_quantities()
