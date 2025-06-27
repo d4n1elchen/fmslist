@@ -3,6 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling >= 1.26"]
 
 [project]
+dependencies = ["bs4", "requests"]
 description = "A web scraper that lists items from Findmestore."
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
