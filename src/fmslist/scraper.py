@@ -29,6 +29,7 @@ class ItemDetails:
     vendor: str
     image_urls: list[str]
     link: str
+    product_type: str
     published_at: datetime
     created_at: datetime
     variants: list[Variant]
@@ -117,6 +118,7 @@ class FindMeStoreList:
         vendor = product.get("vendor", "Unknown Vendor")
         image_urls = [image["src"] for image in product.get("images", [])]
         link = f"{self._base_url}/products/{product['handle']}"
+        product_type = product.get("product_type", "Unknown Type")
         published_at = self._parse_timestamp(product["published_at"])
         created_at = self._parse_timestamp(product["created_at"])
         variants = [
@@ -131,7 +133,15 @@ class FindMeStoreList:
             for variant in product.get("variants", [])
         ]
         return ItemDetails(
-            id, title, vendor, image_urls, link, published_at, created_at, variants
+            id,
+            title,
+            vendor,
+            image_urls,
+            link,
+            product_type,
+            published_at,
+            created_at,
+            variants,
         )
 
     def _fetch_products(self, page: int) -> list[ItemDetails]:
@@ -160,7 +170,9 @@ if __name__ == "__main__":
 
     # Print item details
     for item in fms.items:
-        print(f"Item ID: {item.id}, Title: {item.title}, Vendor: {item.vendor}")
+        print(
+            f"Item ID: {item.id}, Title: {item.title}, Vendor: {item.vendor}, Product Type: {item.product_type}"
+        )
         print(f"Published at: {item.published_at}, Created at: {item.created_at}")
         print(f"Link: {item.link}")
         print("Variants:")
