@@ -17,6 +17,7 @@ class Variant:
     price: str
     available: bool
     quantity: int
+    created_at: datetime
 
 
 @dataclass(frozen=True)
@@ -29,7 +30,7 @@ class ItemDetails:
     image_urls: list[str]
     link: str
     published_at: datetime
-    updated_at: datetime
+    created_at: datetime
     variants: list[Variant]
 
 
@@ -117,7 +118,7 @@ class FindMeStoreList:
         image_urls = [image["src"] for image in product.get("images", [])]
         link = f"{self._base_url}/products/{product['handle']}"
         published_at = self._parse_timestamp(product["published_at"])
-        updated_at = self._parse_timestamp(product["updated_at"])
+        created_at = self._parse_timestamp(product["created_at"])
         variants = [
             Variant(
                 id=variant["id"],
@@ -125,11 +126,12 @@ class FindMeStoreList:
                 price=variant["price"],
                 available=variant["available"],
                 quantity=0,
+                created_at=self._parse_timestamp(variant["created_at"]),
             )
             for variant in product.get("variants", [])
         ]
         return ItemDetails(
-            id, title, vendor, image_urls, link, published_at, updated_at, variants
+            id, title, vendor, image_urls, link, published_at, created_at, variants
         )
 
     def _fetch_products(self, page: int) -> list[ItemDetails]:
@@ -149,3 +151,24 @@ class FindMeStoreList:
                 )
         products = res.json().get("products", [])
         return [self._parse_product(product) for product in products]
+
+
+if __name__ == "__main__":
+    fms = FindMeStoreList()
+    fms.fetch_items()
+    fms.fill_quantities()
+
+    # Print item details
+    for item in fms.items:
+        print(f"Item ID: {item.id}, Title: {item.title}, Vendor: {item.vendor}")
+        print(f"Published at: {item.published_at}, Created at: {item.created_at}")
+        print(f"Link: {item.link}")
+        print("Variants:")
+        for variant in item.variants:
+            print(f"  - Variant ID: {variant.id}")
+            print(f"    Name: {variant.name}, Price: {variant.price}")
+            print(f"    Available: {variant.available}, Quantity: {variant.quantity}")
+            print(f"    Created at: {variant.created_at}")
+        print()
+
+    print(f"Total items fetched: {len(fms.items)}")
