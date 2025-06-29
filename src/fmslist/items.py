@@ -58,9 +58,11 @@ class FindMeStoreItemList:
         )
 
     def get_items(
-        self, fill_quantity: bool = True, fill_preorder_period: bool = True
+        self, fill_quantity: bool = True, fill_preorder_period: bool = False
     ) -> list[ItemDetails]:
         """Fetches items from the FMS list and optionally fills their quantities."""
+        if fill_preorder_period and not fill_quantity:
+            raise ValueError("Preorder period is requiring quantity to work.")
         items = self._fetch_items()
         if fill_quantity:
             self._fill_quantities(items)
