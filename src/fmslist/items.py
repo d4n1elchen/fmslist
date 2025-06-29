@@ -7,7 +7,8 @@ from typing import Mapping
 
 import requests
 from bs4 import BeautifulSoup
-from utils import FMS_BASE_URL, fix_json
+
+from .utils import FMS_BASE_URL, fix_json
 
 
 @dataclass
