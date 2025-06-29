@@ -38,21 +38,27 @@ class ItemDetails:
 class FindMeStoreList:
     """A class to scrape the Find Me Store (FMS) list from the specified URL."""
 
-    items: list[ItemDetails] = []
-
     def __init__(self):
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": "MJ12bot"})
         self._base_url = "https://findmestore.thinkr.jp"
 
-    def fetch_items(self) -> None:
+    def get_items(self, fill_quantity: bool = True) -> list[ItemDetails]:
+        """Fetches items from the FMS list and optionally fills their quantities."""
+        items = self.fetch_items()
+        if fill_quantity:
+            self.fill_quantities(items)
+        return items
+
+    def fetch_items(self) -> list[ItemDetails]:
         """Fetches all items from the FMS list."""
+        all_items: list[ItemDetails] = []
         page = 1
         while True:
             try:
                 # Fetch the first page of products
                 items = self._fetch_products(page)
-                self.items.extend(items)
+                all_items.extend(items)
                 if not items:
                     break  # No products found, exit the loop
                 page += 1
@@ -61,9 +67,11 @@ class FindMeStoreList:
                 break  # Exit the loop on error
 
         # Sort items by publish time
-        self.items.sort(key=lambda item: item.published_at, reverse=True)
+        all_items.sort(key=lambda item: item.published_at, reverse=True)
 
-    def fill_quantities(self) -> None:
+        return all_items
+
+    def fill_quantities(self, items: list[ItemDetails]) -> None:
         """Fills the quantities for each variant in the items."""
         quantities: Mapping[int, int] = {}
         page = 1
@@ -79,7 +87,7 @@ class FindMeStoreList:
                 print(f"Error fetching quantities: {e}")
                 break
 
-        for item in self.items:
+        for item in items:
             for variant in item.variants:
                 variant.quantity = max(quantities.get(variant.id, 0), -1)
 
@@ -165,11 +173,11 @@ class FindMeStoreList:
 
 if __name__ == "__main__":
     fms = FindMeStoreList()
-    fms.fetch_items()
-    fms.fill_quantities()
+
+    items = fms.get_items()
 
     # Print item details
-    for item in fms.items:
+    for item in items:
         print(
             f"Item ID: {item.id}, Title: {item.title}, Vendor: {item.vendor}, Product Type: {item.product_type}"
         )
@@ -183,4 +191,4 @@ if __name__ == "__main__":
             print(f"    Created at: {variant.created_at}")
         print()
 
-    print(f"Total items fetched: {len(fms.items)}")
+    print(f"Total items fetched: {len(items)}")
