@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Mapping
 
 import requests
+from bs4 import BeautifulSoup
 from utils import FMS_BASE_URL, fix_json
 
 
@@ -22,6 +23,14 @@ class Variant:
 
 
 @dataclass(frozen=True)
+class Period:
+    """A class to hold a period of time"""
+
+    start_time: datetime
+    end_time: datetime
+
+
+@dataclass
 class ItemDetails:
     """A class to hold details of an item."""
 
@@ -34,6 +43,7 @@ class ItemDetails:
     published_at: datetime
     created_at: datetime
     variants: list[Variant]
+    preorder_period: Period | None = None
 
 
 class FindMeStoreItemList:
@@ -41,14 +51,36 @@ class FindMeStoreItemList:
 
     def __init__(self):
         self._session = requests.Session()
-        self._session.headers.update({"User-Agent": "MJ12bot"})
+        self._session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            }
+        )
 
-    def get_items(self, fill_quantity: bool = True) -> list[ItemDetails]:
+    def get_items(
+        self, fill_quantity: bool = True, fill_preorder_period: bool = True
+    ) -> list[ItemDetails]:
         """Fetches items from the FMS list and optionally fills their quantities."""
         items = self._fetch_items()
         if fill_quantity:
             self._fill_quantities(items)
+        if fill_preorder_period:
+            self._fill_preorder_period(items)
         return items
+
+    def _fill_preorder_period(self, items: list[ItemDetails]):
+        """Fills the preorder period for possibly preorder items. Need the quantity be filled before calling this."""
+        for item in items:
+            maybe_preorder = False
+            for variant in item.variants:
+                if variant.quantity > 5000:
+                    # This is just a guess
+                    maybe_preorder = True
+                    break
+            if maybe_preorder:
+                period = self._fetch_preorder_period(item.link)
+                if period:
+                    item.preorder_period = period
 
     def _fetch_items(self) -> list[ItemDetails]:
         """Fetches all items from the FMS list."""
@@ -168,6 +200,59 @@ class FindMeStoreItemList:
         products = res.json().get("products", [])
         return [self._parse_product(product) for product in products]
 
+    def _unify_hyphen_symbol(self, text: str) -> str:
+        """Unifies the tilde and hyphen symbols."""
+        return re.sub(r"\s*[〜~-]\s*", "-", text).strip()
+
+    def _extract_period(self, text: str) -> Period:
+        """Extracts a periods from a string and returns it as datetime objects."""
+        text = self._unify_hyphen_symbol(text)
+
+        matches = re.findall(
+            r"(\d{4}年\d{1,2}月\d{1,2}日 \d{1,2}:\d{1,2}-\d{4}年\d{1,2}月\d{1,2}日 \d{1,2}:\d{1,2})",
+            text,
+        )
+
+        if len(matches) != 1:
+            raise ValueError(f"Failed to match periods from '{text}'")
+
+        start_str, end_str = matches[0].split("-", 1)
+
+        try:
+            start_date = datetime.strptime(f"{start_str.strip()}", "%Y年%m月%d日 %H:%M")
+            end_date = datetime.strptime(f"{end_str.strip()}", "%Y年%m月%d日 %H:%M")
+            return Period(start_date, end_date)
+        except ValueError as e:
+            raise ValueError(f"Error parsing date from '{text}': {e}")
+
+    def _fetch_preorder_period(self, link: str) -> Period | None:
+        """Fetches the preorder period from the product page."""
+        while True:
+            res = self._session.get(link)
+            if res.status_code == 200:
+                break
+            elif res.status_code == 429:
+                print(f"Rate limit exceeded, waiting 5s before retrying link {link}...")
+                time.sleep(5)
+            else:
+                raise ValueError(
+                    f"Failed to fetch product page {link}: [{res.status_code}] {res.text}"
+                )
+
+        soup = BeautifulSoup(res.text, "html.parser")
+        order_term_elem = soup.select_one("p.orderTerm")
+        if not order_term_elem:
+            print(f"No order term found from {link}")
+            return None
+
+        order_term = order_term_elem.get_text(strip=True)
+
+        try:
+            return self._extract_period(order_term)
+        except ValueError as e:
+            print(f"Failed to extract period for {link}: {e}")
+            return None
+
 
 if __name__ == "__main__":
     fms = FindMeStoreItemList()
@@ -178,6 +263,10 @@ if __name__ == "__main__":
         print(f"  Vendor: {item.vendor}")
         print(f"  Link: {item.link}")
         print(f"  Published at: {item.published_at}")
+        if item.preorder_period:
+            print(
+                f"  Preorder period: {item.preorder_period.start_time.strftime("%Y/%m/%d %H:%M")} - {item.preorder_period.end_time.strftime("%Y/%m/%d %H:%M")}"
+            )
         print(f"  Variants:")
         for variant in item.variants:
             print(
