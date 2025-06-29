@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Mapping
 
 import requests
+from utils import FMS_BASE_URL, fix_json
 
 
 @dataclass
@@ -35,22 +36,21 @@ class ItemDetails:
     variants: list[Variant]
 
 
-class FindMeStoreList:
+class FindMeStoreItemList:
     """A class to scrape the Find Me Store (FMS) list from the specified URL."""
 
     def __init__(self):
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": "MJ12bot"})
-        self._base_url = "https://findmestore.thinkr.jp"
 
     def get_items(self, fill_quantity: bool = True) -> list[ItemDetails]:
         """Fetches items from the FMS list and optionally fills their quantities."""
-        items = self.fetch_items()
+        items = self._fetch_items()
         if fill_quantity:
-            self.fill_quantities(items)
+            self._fill_quantities(items)
         return items
 
-    def fetch_items(self) -> list[ItemDetails]:
+    def _fetch_items(self) -> list[ItemDetails]:
         """Fetches all items from the FMS list."""
         all_items: list[ItemDetails] = []
         page = 1
@@ -71,7 +71,7 @@ class FindMeStoreList:
 
         return all_items
 
-    def fill_quantities(self, items: list[ItemDetails]) -> None:
+    def _fill_quantities(self, items: list[ItemDetails]) -> None:
         """Fills the quantities for each variant in the items."""
         quantities: Mapping[int, int] = {}
         page = 1
@@ -95,7 +95,7 @@ class FindMeStoreList:
         """Fetches the quantities from search API. Returns a mapping of variant IDs to quantities."""
         while True:
             res = self._session.get(
-                f"{self._base_url}/search?view=preorderjson&q=*&page={page}"
+                f"{FMS_BASE_URL}/search?view=preorderjson&q=*&page={page}"
             )
             if res.status_code == 200:
                 break
@@ -106,11 +106,9 @@ class FindMeStoreList:
                 raise ValueError(
                     f"Failed to fetch search result at page {page}: [{res.status_code}] {res.text}"
                 )
-        # A hacky fix for the API returning an empty "id" field
-        json_fixed = re.sub(r":\s*(,|\})", f": null\\1", res.text)
         return {
             variant["id"]: variant["inventory_quantity"]
-            for product in json.loads(json_fixed)
+            for product in json.loads(fix_json(res.text))
             for variant in product.get("variants", [])
             if variant["available"]
         }
@@ -125,7 +123,7 @@ class FindMeStoreList:
         title = product["title"]
         vendor = product.get("vendor", "Unknown Vendor")
         image_urls = [image["src"] for image in product.get("images", [])]
-        link = f"{self._base_url}/products/{product['handle']}"
+        link = f"{FMS_BASE_URL}/products/{product['handle']}"
         product_type = product.get("product_type", "Unknown Type")
         published_at = self._parse_timestamp(product["published_at"])
         created_at = self._parse_timestamp(product["created_at"])
@@ -156,7 +154,7 @@ class FindMeStoreList:
         """Fetches the products from the FMS list."""
         while True:
             res = self._session.get(
-                f"{self._base_url}/products.json?limit=250&page={page}"
+                f"{FMS_BASE_URL}/products.json?limit=250&page={page}"
             )
             if res.status_code == 200:
                 break
@@ -172,23 +170,18 @@ class FindMeStoreList:
 
 
 if __name__ == "__main__":
-    fms = FindMeStoreList()
+    fms = FindMeStoreItemList()
 
-    items = fms.get_items()
-
-    # Print item details
+    items = fms.get_items(fill_quantity=True)
     for item in items:
-        print(
-            f"Item ID: {item.id}, Title: {item.title}, Vendor: {item.vendor}, Product Type: {item.product_type}"
-        )
-        print(f"Published at: {item.published_at}, Created at: {item.created_at}")
-        print(f"Link: {item.link}")
-        print("Variants:")
+        print(f"Item: {item.title} (ID: {item.id})")
+        print(f"  Vendor: {item.vendor}")
+        print(f"  Link: {item.link}")
+        print(f"  Published at: {item.published_at}")
+        print(f"  Variants:")
         for variant in item.variants:
-            print(f"  - Variant ID: {variant.id}")
-            print(f"    Name: {variant.name}, Price: {variant.price}")
-            print(f"    Available: {variant.available}, Quantity: {variant.quantity}")
-            print(f"    Created at: {variant.created_at}")
+            print(
+                f"    - Variant ID: {variant.id}, Name: {variant.name}, Price: {variant.price}, Available: {variant.available}, Quantity: {variant.quantity}"
+            )
         print()
-
     print(f"Total items fetched: {len(items)}")
