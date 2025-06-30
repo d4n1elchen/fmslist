@@ -226,10 +226,10 @@ class FindMeStoreItemList:
             jptz = pytz.timezone("Asia/Tokyo")
             start_date = jptz.localize(
                 datetime.strptime(f"{start_str.strip()}", "%Y年%m月%d日 %H:%M")
-            )
+            ).astimezone(pytz.utc)
             end_date = jptz.localize(
                 datetime.strptime(f"{end_str.strip()}", "%Y年%m月%d日 %H:%M")
-            )
+            ).astimezone(pytz.utc)
             return Period(start_date, end_date)
         except ValueError as e:
             raise ValueError(f"Error parsing date from '{text}': {e}")
