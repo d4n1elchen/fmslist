@@ -274,7 +274,7 @@ if __name__ == "__main__":
         print(f"  Published at: {item.published_at}")
         if item.preorder_period:
             print(
-                f"  Preorder period: {item.preorder_period.start_time.strftime("%Y/%m/%d %H:%M")} - {item.preorder_period.end_time.strftime("%Y/%m/%d %H:%M")}"
+                f"  Preorder period: {item.preorder_period.start_time.strftime('%Y/%m/%d %H:%M')} - {item.preorder_period.end_time.strftime('%Y/%m/%d %H:%M')}"
             )
         print(f"  Variants:")
         for variant in item.variants:
