@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Mapping
 
+import pytz
 import requests
 from bs4 import BeautifulSoup
 
@@ -150,7 +151,7 @@ class FindMeStoreItemList:
 
     def _parse_timestamp(self, timestamp: str) -> datetime:
         """Parses a timestamp string into a datetime object."""
-        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z")
+        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").astimezone(pytz.utc)
 
     def _parse_product(self, product: dict) -> ItemDetails:
         """Parses a product dictionary into an ItemDetails object."""
@@ -222,8 +223,13 @@ class FindMeStoreItemList:
         start_str, end_str = matches[0].split("-", 1)
 
         try:
-            start_date = datetime.strptime(f"{start_str.strip()}", "%Y年%m月%d日 %H:%M")
-            end_date = datetime.strptime(f"{end_str.strip()}", "%Y年%m月%d日 %H:%M")
+            jptz = pytz.timezone("Asia/Tokyo")
+            start_date = jptz.localize(
+                datetime.strptime(f"{start_str.strip()}", "%Y年%m月%d日 %H:%M")
+            )
+            end_date = jptz.localize(
+                datetime.strptime(f"{end_str.strip()}", "%Y年%m月%d日 %H:%M")
+            )
             return Period(start_date, end_date)
         except ValueError as e:
             raise ValueError(f"Error parsing date from '{text}': {e}")
