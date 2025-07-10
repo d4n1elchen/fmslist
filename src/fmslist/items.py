@@ -9,7 +9,7 @@ import pytz
 import requests
 from bs4 import BeautifulSoup
 
-from .utils import FMS_BASE_URL, fix_json
+from .utils import BREAK_TIME, FMS_BASE_URL, RETRY_PERIOD, fix_json
 
 
 @dataclass
@@ -82,6 +82,7 @@ class FindMeStoreItemList:
                     maybe_preorder = True
                     break
             if maybe_preorder:
+                time.sleep(BREAK_TIME)
                 period = self._fetch_preorder_period(item.link)
                 if period:
                     item.preorder_period = period
@@ -136,8 +137,10 @@ class FindMeStoreItemList:
             if res.status_code == 200:
                 break
             elif res.status_code == 429:
-                print(f"Rate limit exceeded, waiting 5s before retrying page {page}...")
-                time.sleep(5)
+                print(
+                    f"Rate limit exceeded, waiting {RETRY_PERIOD}s before retrying page {page}..."
+                )
+                time.sleep(RETRY_PERIOD)
             else:
                 raise ValueError(
                     f"Failed to fetch search result at page {page}: [{res.status_code}] {res.text}"
@@ -195,8 +198,10 @@ class FindMeStoreItemList:
             if res.status_code == 200:
                 break
             elif res.status_code == 429:
-                print(f"Rate limit exceeded, waiting 5s before retrying page {page}...")
-                time.sleep(5)
+                print(
+                    f"Rate limit exceeded, waiting {RETRY_PERIOD}s before retrying page {page}..."
+                )
+                time.sleep(RETRY_PERIOD)
             else:
                 raise ValueError(
                     f"Failed to fetch products at page {page}: [{res.status_code}] {res.text}"
@@ -241,8 +246,10 @@ class FindMeStoreItemList:
             if res.status_code == 200:
                 break
             elif res.status_code == 429:
-                print(f"Rate limit exceeded, waiting 5s before retrying link {link}...")
-                time.sleep(5)
+                print(
+                    f"Rate limit exceeded, waiting {RETRY_PERIOD}s before retrying link {link}..."
+                )
+                time.sleep(RETRY_PERIOD)
             else:
                 raise ValueError(
                     f"Failed to fetch product page {link}: [{res.status_code}] {res.text}"
@@ -266,7 +273,7 @@ class FindMeStoreItemList:
 if __name__ == "__main__":
     fms = FindMeStoreItemList()
 
-    items = fms.get_items(fill_quantity=True)
+    items = fms.get_items(fill_quantity=True, fill_preorder_period=True)
     for item in items:
         print(f"Item: {item.title} (ID: {item.id})")
         print(f"  Vendor: {item.vendor}")
