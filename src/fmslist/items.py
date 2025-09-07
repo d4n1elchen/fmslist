@@ -218,7 +218,7 @@ class FindMeStoreItemList:
         text = self._unify_hyphen_symbol(text)
 
         matches = re.findall(
-            r"(\d{4}年\d{1,2}月\d{1,2}日 \d{1,2}:\d{1,2}-\d{4}年\d{1,2}月\d{1,2}日 \d{1,2}:\d{1,2})",
+            r"(\d{4}年\d{1,2}月\d{1,2}日\s*\d{1,2}:\d{1,2}-\d{4}年\d{1,2}月\d{1,2}日\s*\d{1,2}:\d{1,2})",
             text,
         )
 
